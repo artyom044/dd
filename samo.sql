@@ -167,6 +167,7 @@ INSERT INTO PromoUsage (user_id, promo_id, usage_date, rental_id) VALUES
 -- Все промокоды у которых expire_date заканчивается в текущем или следующем месяце
 SELECT 
     promo_id,
+    code,
     discount_percent,
     expire_date,
     current_uses,
