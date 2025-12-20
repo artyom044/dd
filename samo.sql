@@ -1,5 +1,5 @@
 ---- таблица пользователей)
-CREATE TABLE User (
+CREATE TABLE Useer (
     user_id SERIAL PRIMARY KEY,
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL,
@@ -55,7 +55,7 @@ CREATE TABLE Rental (
     cost DECIMAL(10,2),
     discount_amount DECIMAL(10,2) DEFAULT 0,
     status VARCHAR(20) CHECK (status IN ('active', 'completed', 'cancelled')),
-    FOREIGN KEY (user_id) REFERENCES User(user_id),
+    FOREIGN KEY (user_id) REFERENCES Useer(user_id),
     FOREIGN KEY (scooter_id) REFERENCES Scooter(scooter_id),
     FOREIGN KEY (tariff_id) REFERENCES Tariff(tariff_id),
     FOREIGN KEY (promo_id) REFERENCES Promocode(promo_id)
@@ -79,7 +79,7 @@ CREATE TABLE PromoUsage (
     promo_id INT NOT NULL,
     usage_date TIMESTAMP NOT NULL,
     rental_id INT NOT NULL,
-    FOREIGN KEY (user_id) REFERENCES User(user_id),
+    FOREIGN KEY (user_id) REFERENCES Useer(user_id),
     FOREIGN KEY (promo_id) REFERENCES Promocode(promo_id),
     FOREIGN KEY (rental_id) REFERENCES Rental(rental_id),
     UNIQUE(user_id, promo_id, rental_id)
@@ -87,7 +87,7 @@ CREATE TABLE PromoUsage (
 
 
 ------ пользователи
-INSERT INTO User (first_name, last_name, phone, email, registration_date) VALUES
+INSERT INTO Useer (first_name, last_name, phone, email, registration_date) VALUES
 ('Иван', 'Иванов', '79161234567', 'ivan@mail.ru', '2021-01-15'),
 ('Анна', 'Петрова', '79262345678', 'anna@mail.ru', '2023-02-20'),
 ('Алексей', 'Сидоров', '79363456789', 'alex@mail.ru', '2023-03-10'),
@@ -161,3 +161,61 @@ INSERT INTO PromoUsage (user_id, promo_id, usage_date, rental_id) VALUES
 (8, 4, '2024-12-08 11:05:00', 8),
 (10, 5, '2024-12-10 18:57:00', 10);
 
+-- Все промокоды у которых expire_date в текущем или следующем месяце
+SELECT 
+    promo_id,
+    code,
+    discount_percent,
+    expire_date,
+    current_uses,
+    max_uses
+FROM Promocode
+WHERE 
+    EXTRACT(YEAR FROM expire_date) = EXTRACT(YEAR FROM CURRENT_DATE)
+    AND EXTRACT(MONTH FROM expire_date) IN (
+        EXTRACT(MONTH FROM CURRENT_DATE),
+        EXTRACT(MONTH FROM CURRENT_DATE + INTERVAL '1 month')
+    )
+ORDER BY expire_date;
+
+-- Выбрать всех пользователей сумма всех поездок
+SELECT 
+    u.user_id,
+    u.first_name,
+    u.last_name,
+    u.phone,
+    COUNT(r.rental_id),
+    COALESCE(SUM(r.cost), 0),
+    COALESCE(ROUND(AVG(r.cost), 2), 0)
+FROM Useer u
+LEFT JOIN Rental r ON u.user_id = r.user_id 
+    AND r.status = 'completed'
+GROUP BY u.user_id, u.first_name, u.last_name, u.phone
+ORDER BY COALESCE(SUM(r.cost), 0) DESC;
+
+-- Выбрать самый популярный тариф который чаще используют
+SELECT 
+    t.tariff_id,
+    t.name,
+    t.cost_per_minute,
+    COUNT(r.rental_id),
+    COUNT(DISTINCT r.user_id)
+FROM Tariff t
+LEFT JOIN Rental r ON t.tariff_id = r.tariff_id 
+    AND r.status = 'completed'
+WHERE t.is_active = true
+GROUP BY t.tariff_id, t.name, t.cost_per_minute
+ORDER BY COUNT(r.rental_id) DESC
+LIMIT 1;
+
+--top 5 пользователей которые используют промокоды
+SELECT 
+    u.user_id,
+    u.first_name,
+    u.last_name,
+    COUNT(pu.usage_id) as promos_used
+FROM Useer u
+JOIN PromoUsage pu ON u.user_id = pu.user_id
+GROUP BY u.user_id, u.first_name, u.last_name
+ORDER BY COUNT(pu.usage_id) DESC
+LIMIT 5;
