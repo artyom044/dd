@@ -155,10 +155,9 @@ INSERT INTO PromoUsage (user_id, promo_id, usage_date, rental_id) VALUES
 (8, 4, '08-12-2024 11:05:00', 8),
 (10, 5, '10-12-2024 18:57:00', 10);
 
--- Все промокоды у которых expire_date в текущем или следующем месяце
+-- Все промокоды у которых expire_date заканчивается в текущем или следующем месяце
 SELECT 
     promo_id,
-    code,
     discount_percent,
     expire_date,
     current_uses,
